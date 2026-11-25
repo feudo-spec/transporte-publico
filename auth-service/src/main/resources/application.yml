@@ -1,0 +1,44 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: auth-service
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/auth_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        default-requeue-rejected: false
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-minutos: 15
+  refresh-dias: 7
+
+validador:
+  client-id: ${VALIDADOR_CLIENT_ID:simulador-validadores}
+  client-secret: ${VALIDADOR_CLIENT_SECRET:}
+
+admin:
+  correo: ${ADMIN_CORREO:}
+  password: ${ADMIN_PASSWORD:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
