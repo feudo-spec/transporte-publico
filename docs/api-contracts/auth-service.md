@@ -66,11 +66,14 @@ Servicio responsable de las credenciales, los roles y la emisión de tokens JWT.
   "cedula": "8-123-456",
   "nombres": "Ana",
   "apellidos": "Pérez",
+  "fechaNacimiento": "2000-05-17",
   "telefono": "6000-0000"
 }
 // Response 201
 { "idUsuario": "b3f1c9e2-5a41-4c7e-9d0a-1f2e3a4b5c6d" }
 ```
+
+`telefono` es opcional; los demás campos son obligatorios y `fechaNacimiento` (formato `yyyy-MM-dd`) debe ser anterior a hoy.
 
 Errores: 400 `VALIDACION`, 409 `CORREO_YA_REGISTRADO`.
 Efecto: crea la credencial con rol `USUARIO` (contraseña con BCrypt) y publica `UsuarioRegistrado`. Los datos personales viajan en el evento para que `usuarios-service` cree el perfil.
@@ -106,20 +109,33 @@ Errores: 401 `REFRESH_TOKEN_INVALIDO` (vencido o revocado).
 
 Efecto: revoca el refresh token.
 
-### POST /api/auth/oauth2/token — client credentials (VALIDADOR)
+### POST /api/auth/oauth2/token — password y client credentials
 
-Formulario `application/x-www-form-urlencoded`: `grant_type=client_credentials&client_id=...&client_secret=...`
+Formulario `application/x-www-form-urlencoded`. Según `grant_type`:
+
+- `password` (usuarios): `grant_type=password&username=<correo>&password=<contraseña>`. Equivale a `/login` con formato OAuth2.
+- `client_credentials` (VALIDADOR): `grant_type=client_credentials&client_id=...&client_secret=...`
 
 ```json
-// Response 200
+// Response 200 (password)
+{ "access_token": "...", "token_type": "Bearer", "expires_in": 900, "refresh_token": "9f8e..." }
+// Response 200 (client_credentials): no incluye refresh_token
 { "access_token": "...", "token_type": "Bearer", "expires_in": 900 }
 ```
 
-Errores: 401 `CLIENTE_INVALIDO`.
+Errores: 400 `VALIDACION` (falta un parámetro o `grant_type` no soportado), 401 `CREDENCIALES_INVALIDAS` (password), 401 `CLIENTE_INVALIDO` (client_credentials), 403 `USUARIO_DESACTIVADO` (password).
 
 ### Rutas públicas (no requieren token)
 
 `/api/auth/registro`, `/api/auth/login`, `/api/auth/refresh`, `/api/auth/oauth2/token`.
+
+### Errores generados por Spring Security
+
+Además de los errores de cada endpoint, cualquier ruta protegida puede devolver, con el mismo formato de error:
+
+- 401 `NO_AUTENTICADO`: falta el token, está vencido o la firma no es válida.
+- 403 `ACCESO_DENEGADO`: el token es válido pero no tiene el rol necesario.
+- 503 `SERVICIO_NO_DISPONIBLE`: RabbitMQ no está disponible y no se pudo publicar el evento (por ejemplo en el registro, que se revierte).
 
 ## 4. Eventos
 
@@ -145,7 +161,8 @@ Routing key: `usuario.registrado`. Consume: usuarios-service (cola `usuarios.usu
 ```json
 "datos": {
   "idUsuario": "b3f1c9e2-…", "correo": "ana@mail.com", "cedula": "8-123-456",
-  "nombres": "Ana", "apellidos": "Pérez", "telefono": "6000-0000"
+  "nombres": "Ana", "apellidos": "Pérez", "fechaNacimiento": "2000-05-17",
+  "telefono": "6000-0000"
 }
 ```
 
